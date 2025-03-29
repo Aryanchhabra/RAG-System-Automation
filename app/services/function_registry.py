@@ -35,156 +35,232 @@ class FunctionRegistry:
         
         try:
             func = self.functions[function_name]
-            result = func(**kwargs)
             
+            # Get function metadata
+            metadata = self.metadata[function_name]
+            
+            # For system monitoring functions, try to execute without parameters
+            if metadata.category == "System Monitoring":
+                try:
+                    result = func()
+                except TypeError:
+                    # If function requires parameters, try with empty kwargs
+                    result = func(**kwargs)
+            else:
+                # For other functions, check if parameters are required
+                if metadata.parameters and not kwargs:
+                    return json.dumps({
+                        "error": f"Function '{function_name}' requires parameters: {', '.join(metadata.parameters.keys())}"
+                    }, indent=2)
+                result = func(**kwargs)
+            
+            # If result is already a JSON string, return it
+            if isinstance(result, str) and result.startswith('{'):
+                return result
+                
             # Format the result based on its type
             if isinstance(result, (dict, list)):
                 return json.dumps(result, indent=2)
             elif isinstance(result, (int, float)):
-                return f"{result:.2f}%"
+                return json.dumps({"value": f"{result:.2f}%"}, indent=2)
             else:
-                return str(result)
+                return json.dumps({"value": str(result)}, indent=2)
                 
         except Exception as e:
             logger.error(f"Error executing function {function_name}: {str(e)}")
-            raise
+            return json.dumps({"error": str(e)}, indent=2)
 
     def _register_functions(self):
-        # Application Control Functions
-        self.register_function(
-            name="open_chrome",
-            func=self._open_chrome,
-            description="Opens Google Chrome browser",
-            category="Application Control",
-            examples=["Open Chrome", "Launch Google Chrome", "Start Chrome browser"]
-        )
-
-        self.register_function(
-            name="open_calculator",
-            func=self._open_calculator,
-            description="Opens the system calculator",
-            category="Application Control",
-            examples=["Open calculator", "Launch calculator", "Start calculator"]
-        )
-
-        self.register_function(
-            name="open_notepad",
-            func=self._open_notepad,
-            description="Opens Notepad text editor",
-            category="Application Control",
-            examples=["Open notepad", "Launch notepad", "Start notepad"]
-        )
-
-        self.register_function(
-            name="open_vscode",
-            func=self._open_vscode,
-            description="Opens Visual Studio Code",
-            category="Application Control",
-            examples=["Open VS Code", "Launch VS Code", "Start VS Code"]
-        )
-
+        """Register all available functions"""
         # System Monitoring Functions
         self.register_function(
             name="get_system_info",
             func=self._get_system_info,
-            description="Gets detailed system information",
+            description="Get comprehensive system information including CPU, RAM, disk, and network details",
             category="System Monitoring",
-            examples=["Show system info", "Get system details", "Check system information"]
+            examples=[
+                "Show system information",
+                "Get system details",
+                "Display system status",
+                "Show system stats",
+                "Get system overview",
+                "Show system info",
+                "Get system information",
+                "Display system information",
+                "Show system details",
+                "Get system status",
+                "Show system",
+                "Get system",
+                "Display system",
+                "Show system overview",
+                "Get system overview"
+            ]
         )
-
+        
         self.register_function(
             name="get_cpu_usage",
             func=self._get_cpu_usage,
-            description="Gets the current CPU usage percentage",
+            description="Get current CPU usage and details",
             category="System Monitoring",
-            examples=["Show CPU usage", "Get CPU utilization", "Check CPU load"]
+            examples=[
+                "Show CPU usage",
+                "Get CPU stats",
+                "Display CPU information",
+                "Show CPU details",
+                "Get CPU performance",
+                "Show CPU utilization",
+                "Get CPU load",
+                "Display CPU usage",
+                "Show CPU performance",
+                "Get CPU information"
+            ]
         )
-
+        
         self.register_function(
             name="get_ram_usage",
             func=self._get_ram_usage,
-            description="Gets the current RAM usage percentage",
+            description="Get current RAM usage and details",
             category="System Monitoring",
-            examples=["Show RAM usage", "Get memory utilization", "Check RAM load"]
+            examples=[
+                "Show RAM usage",
+                "Get RAM stats",
+                "Display RAM information",
+                "Show RAM details",
+                "Get memory usage",
+                "Show memory usage",
+                "Get RAM utilization",
+                "Display memory information",
+                "Show memory stats",
+                "Get RAM performance"
+            ]
         )
-
+        
         self.register_function(
             name="get_disk_usage",
             func=self._get_disk_usage,
-            description="Gets the current disk usage percentage",
+            description="Get current disk usage and details",
             category="System Monitoring",
-            examples=["Show disk usage", "Get disk utilization", "Check disk space"]
+            examples=[
+                "Show disk usage",
+                "Get disk stats",
+                "Display disk information",
+                "Show disk details",
+                "Get storage usage",
+                "Show storage usage",
+                "Get disk utilization",
+                "Display storage information",
+                "Show storage stats",
+                "Get disk performance"
+            ]
         )
-
+        
         self.register_function(
             name="get_network_info",
             func=self._get_network_info,
-            description="Gets network interface information",
+            description="Get current network interface information",
             category="System Monitoring",
-            examples=["Show network info", "Get network details", "Check network status"]
+            examples=[
+                "Show network info",
+                "Get network stats",
+                "Display network information",
+                "Show network details",
+                "Get network status",
+                "Show network status",
+                "Get network utilization",
+                "Display network details",
+                "Show network performance",
+                "Get network interface info"
+            ]
         )
-
-        # File System Functions
+        
+        # Application Control Functions
         self.register_function(
-            name="list_directory",
-            func=self._list_directory,
-            description="Lists contents of a directory",
-            category="File System",
-            parameters={"path": "The directory path to list"},
-            examples=["List directory", "Show folder contents", "List files"]
+            name="open_calculator",
+            func=self._open_calculator,
+            description="Open the system calculator application",
+            category="Application Control",
+            examples=[
+                "Open calculator",
+                "Launch calculator",
+                "Start calculator",
+                "Run calculator",
+                "Open calc"
+            ]
         )
-
+        
         self.register_function(
-            name="create_directory",
-            func=self._create_directory,
-            description="Creates a new directory",
-            category="File System",
-            parameters={"path": "The path where the directory should be created"},
-            examples=["Create directory", "Make new folder", "Create folder"]
+            name="open_notepad",
+            func=self._open_notepad,
+            description="Open the system notepad application",
+            category="Application Control",
+            examples=[
+                "Open notepad",
+                "Launch notepad",
+                "Start notepad",
+                "Run notepad",
+                "Open text editor"
+            ]
         )
-
+        
         self.register_function(
-            name="delete_file",
-            func=self._delete_file,
-            description="Deletes a file",
-            category="File System",
-            parameters={"path": "The path of the file to delete"},
-            examples=["Delete file", "Remove file", "Erase file"]
+            name="open_chrome",
+            func=self._open_chrome,
+            description="Open the Google Chrome web browser",
+            category="Application Control",
+            examples=[
+                "Open Chrome",
+                "Launch Chrome",
+                "Start Chrome",
+                "Run Chrome",
+                "Open web browser"
+            ]
         )
-
-        # Command Execution Functions
-        self.register_function(
-            name="run_command",
-            func=self._run_command,
-            description="Runs a shell command",
-            category="Command Execution",
-            parameters={"command": "The shell command to execute"},
-            examples=["Run command", "Execute command", "Run shell command"]
-        )
-
-        self.register_function(
-            name="get_process_list",
-            func=self._get_process_list,
-            description="Lists all running processes",
-            category="Command Execution",
-            examples=["Show processes", "List running processes", "Check processes"]
-        )
-
+        
         # Time and Date Functions
         self.register_function(
             name="get_current_time",
             func=self._get_current_time,
-            description="Gets the current system time",
+            description="Get the current time with timezone information",
             category="Time and Date",
-            examples=["Show current time", "Get time", "Check time"]
+            examples=[
+                "Show current time",
+                "Get time",
+                "Display time",
+                "What time is it",
+                "Current time"
+            ]
         )
-
+        
         self.register_function(
             name="get_current_date",
             func=self._get_current_date,
-            description="Gets the current system date",
+            description="Get the current date with day of week",
             category="Time and Date",
-            examples=["Show current date", "Get date", "Check date"]
+            examples=[
+                "Show current date",
+                "Get date",
+                "Display date",
+                "What date is it",
+                "Current date"
+            ]
+        )
+        
+        # File Operations
+        self.register_function(
+            name="delete_file",
+            func=self._delete_file,
+            description="Delete a file from the system",
+            category="File Operations",
+            parameters={
+                "file_path": "Path to the file to delete"
+            },
+            examples=[
+                "Delete file",
+                "Remove file",
+                "Erase file",
+                "Delete the file",
+                "Remove the file"
+            ]
         )
 
     def register_function(
@@ -232,7 +308,7 @@ class FunctionRegistry:
         logger.info("VS Code opened successfully")
 
     # System Monitoring Functions
-    def _get_system_info(self):
+    def _get_system_info(self, **kwargs):
         """Get detailed system information"""
         try:
             info = {
@@ -248,9 +324,9 @@ class FunctionRegistry:
             return json.dumps(info, indent=2)
         except Exception as e:
             logger.error(f"Error getting system info: {e}")
-            raise
+            return json.dumps({"error": str(e)}, indent=2)
 
-    def _get_cpu_usage(self):
+    def _get_cpu_usage(self, **kwargs):
         """Get current CPU usage percentage"""
         try:
             cpu_percent = psutil.cpu_percent(interval=1)
@@ -265,9 +341,9 @@ class FunctionRegistry:
             return json.dumps(info, indent=2)
         except Exception as e:
             logger.error(f"Error getting CPU usage: {e}")
-            raise
+            return json.dumps({"error": str(e)}, indent=2)
 
-    def _get_ram_usage(self):
+    def _get_ram_usage(self, **kwargs):
         """Get current RAM usage percentage"""
         try:
             memory = psutil.virtual_memory()
@@ -280,9 +356,9 @@ class FunctionRegistry:
             return json.dumps(info, indent=2)
         except Exception as e:
             logger.error(f"Error getting RAM usage: {e}")
-            raise
+            return json.dumps({"error": str(e)}, indent=2)
 
-    def _get_disk_usage(self):
+    def _get_disk_usage(self, **kwargs):
         """Get current disk usage percentage"""
         try:
             disk = psutil.disk_usage('/')
@@ -295,9 +371,9 @@ class FunctionRegistry:
             return json.dumps(info, indent=2)
         except Exception as e:
             logger.error(f"Error getting disk usage: {e}")
-            raise
+            return json.dumps({"error": str(e)}, indent=2)
 
-    def _get_network_info(self):
+    def _get_network_info(self, **kwargs):
         """Get network interface information"""
         try:
             interfaces = {}
@@ -312,7 +388,7 @@ class FunctionRegistry:
             return json.dumps(interfaces, indent=2)
         except Exception as e:
             logger.error(f"Error getting network info: {e}")
-            raise
+            return json.dumps({"error": str(e)}, indent=2)
 
     # File System Functions
     def _list_directory(self, path: str = "."):

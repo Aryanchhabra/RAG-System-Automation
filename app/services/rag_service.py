@@ -22,6 +22,16 @@ class RAGService:
     def _initialize_vector_store(self):
         """Initialize the vector store with function metadata"""
         try:
+            # First, delete the existing collection if it exists
+            try:
+                self.client.delete_collection("function_metadata")
+                logger.info("Deleted existing collection")
+            except:
+                pass
+            
+            # Create a new collection
+            self.collection = self.client.create_collection("function_metadata")
+            
             # Get all function metadata
             metadata = function_registry.get_all_metadata()
             
@@ -108,6 +118,8 @@ class RAGService:
 
             # Process results
             retrieved_functions = []
+            query_lower = query.lower()
+            
             for i in range(len(results['ids'][0])):
                 func_name = results['ids'][0][i]
                 metadata = results['metadatas'][0][i]
@@ -116,16 +128,45 @@ class RAGService:
                 # Get function metadata for additional context
                 func_metadata = function_registry.get_metadata(func_name)
                 
+                # Calculate base relevance score
+                relevance_score = 1 - distance
+                
+                # Check for exact matches in examples
+                if any(example.lower() == query_lower for example in func_metadata.examples):
+                    relevance_score = 1.0
+                
+                # Check for partial matches in examples
+                elif any(example.lower() in query_lower for example in func_metadata.examples):
+                    relevance_score += 0.3
+                
+                # Check for function name matches
+                elif func_name.replace('_', ' ').lower() in query_lower:
+                    relevance_score += 0.2
+                
+                # Check for description matches
+                elif func_metadata.description.lower() in query_lower:
+                    relevance_score += 0.1
+                
+                # Category-specific boosts
+                if func_metadata.category == "System Monitoring" and any(word in query_lower for word in ["show", "get", "check", "display", "monitor", "system"]):
+                    relevance_score += 0.5
+                
+                elif func_metadata.category == "Application Control" and any(word in query_lower for word in ["open", "launch", "start", "run", "execute"]):
+                    relevance_score += 0.5
+                
                 retrieved_functions.append({
                     "name": func_name,
                     "metadata": metadata,
-                    "relevance_score": 1 - distance,  # Convert distance to similarity score
+                    "relevance_score": relevance_score,
                     "category": func_metadata.category,
                     "description": func_metadata.description,
                     "parameters": func_metadata.parameters,
                     "examples": func_metadata.examples
                 })
 
+            # Sort by relevance score
+            retrieved_functions.sort(key=lambda x: x["relevance_score"], reverse=True)
+            
             logger.info(f"Retrieved {len(retrieved_functions)} functions for query: {query}")
             return retrieved_functions
 
@@ -137,8 +178,37 @@ class RAGService:
         """
         Get the best matching function for a given query
         """
-        results = self.retrieve_functions(query, n_results=1)
-        return results[0] if results else None
+        results = self.retrieve_functions(query, n_results=5)  # Get top 5 matches
+        
+        if not results:
+            return None
+            
+        query_lower = query.lower()
+        
+        # First, try exact matches in examples
+        for result in results:
+            if any(example.lower() == query_lower for example in result["examples"]):
+                return result
+        
+        # Then, try partial matches in examples
+        for result in results:
+            if any(example.lower() in query_lower for example in result["examples"]):
+                return result
+        
+        # For system monitoring queries, prefer system info function
+        if any(word in query_lower for word in ["show", "get", "check", "display", "monitor", "system"]):
+            for result in results:
+                if result["name"] == "get_system_info":
+                    return result
+        
+        # For application control queries, prefer specific apps
+        if any(word in query_lower for word in ["open", "launch", "start", "run", "execute"]):
+            for result in results:
+                if result["category"] == "Application Control":
+                    return result
+        
+        # If still no match, return the highest scoring result
+        return results[0]
 
     def extract_parameters(self, query: str, function_metadata: Dict[str, Any]) -> Dict[str, Any]:
         """

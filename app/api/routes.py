@@ -9,6 +9,7 @@ import inspect
 import importlib.util
 import tempfile
 import os
+import json
 
 router = APIRouter()
 rag_service = RAGService()
@@ -59,17 +60,44 @@ async def execute_function(request: ExecuteRequest):
             # Add to session history
             rag_service.add_to_history(request.prompt, function_name, result)
             
-            return ExecuteResponse(
-                function=function_name,
-                code=result,  # Now returning the actual result
-                status="success",
-                error=None
-            )
+            # Parse the result
+            try:
+                result_json = json.loads(result)
+                if "error" in result_json:
+                    return ExecuteResponse(
+                        function=function_name,
+                        code=result,
+                        status="error",
+                        error=result_json["error"]
+                    )
+                elif "value" in result_json:
+                    return ExecuteResponse(
+                        function=function_name,
+                        code=result,
+                        status="success",
+                        error=None
+                    )
+                else:
+                    return ExecuteResponse(
+                        function=function_name,
+                        code=result,
+                        status="success",
+                        error=None
+                    )
+            except json.JSONDecodeError:
+                # If result is not JSON, wrap it in a value field
+                return ExecuteResponse(
+                    function=function_name,
+                    code=json.dumps({"value": result}, indent=2),
+                    status="success",
+                    error=None
+                )
+            
         except Exception as e:
             logger.error(f"Error executing function {function_name}: {str(e)}")
             return ExecuteResponse(
                 function=function_name,
-                code=None,
+                code=json.dumps({"error": str(e)}, indent=2),
                 status="error",
                 error=str(e)
             )
